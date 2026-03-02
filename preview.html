@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI 走查报告 - 示例预览</title>
+<style>
+  :root {
+    --c-bg: #0f1117;
+    --c-surface: #1a1d27;
+    --c-border: #2a2d3a;
+    --c-text: #e2e8f0;
+    --c-muted: #64748b;
+    --c-critical: #ef4444;
+    --c-major: #f97316;
+    --c-minor: #eab308;
+    --c-pass: #22c55e;
+    --c-accent: #6366f1;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--c-bg); color: var(--c-text); font-family: 'SF Pro Display', -apple-system, system-ui, sans-serif; }
+
+  .header { background: linear-gradient(135deg, #1e1b4b 0%, #0f1117 60%); border-bottom: 1px solid var(--c-border); padding: 40px 48px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .header h1 span { color: var(--c-accent); }
+  .header .meta { color: var(--c-muted); font-size: 13px; margin-top: 6px; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--c-border); border-bottom: 1px solid var(--c-border); }
+  .stat { background: var(--c-surface); padding: 24px 28px; }
+  .stat .num { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .stat .label { font-size: 12px; color: var(--c-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat.pass .num { color: var(--c-pass); }
+  .stat.critical .num { color: var(--c-critical); }
+  .stat.major .num { color: var(--c-major); }
+
+  .content { padding: 32px 48px; max-width: 1400px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; margin-top: 8px; }
+
+  .component-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+  .card-header { padding: 20px 24px; display: flex; align-items: center; gap: 16px; cursor: pointer; user-select: none; transition: background .15s; }
+  .card-header:hover { background: rgba(255,255,255,0.02); }
+  .score-badge { width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; flex-shrink: 0; }
+  .score-pass { background: rgba(34,197,94,.15); color: var(--c-pass); }
+  .score-warn { background: rgba(249,115,22,.15); color: var(--c-major); }
+  .score-fail { background: rgba(239,68,68,.15); color: var(--c-critical); }
+  .card-info { flex: 1; }
+  .card-info h3 { font-size: 16px; font-weight: 600; }
+  .card-info .chips { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .chip { padding: 2px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .chip-critical { background: rgba(239,68,68,.15); color: var(--c-critical); }
+  .chip-major { background: rgba(249,115,22,.15); color: var(--c-major); }
+  .chip-minor { background: rgba(234,179,8,.15); color: var(--c-minor); }
+  .chip-pass { background: rgba(34,197,94,.15); color: var(--c-pass); }
+  .toggle-icon { color: var(--c-muted); transition: transform .2s; }
+  .card-body { border-top: 1px solid var(--c-border); }
+  .card-body.collapsed { display: none; }
+
+  .diff-view { display: grid; grid-template-columns: 1fr 1fr; }
+  .diff-panel { padding: 20px 24px; }
+  .diff-panel:first-child { border-right: 1px solid var(--c-border); }
+  .diff-panel h4 { font-size: 11px; font-weight: 600; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .mock-img { border-radius: 8px; border: 1px solid var(--c-border); overflow: hidden; }
+  .mock-btn-design { background: #3b5bdb; border-radius: 8px; padding: 12px 24px; color: white; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .mock-btn-impl { background: #4263eb; border-radius: 6px; padding: 12px 22px; color: white; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+  .mock-wrapper { padding: 32px; display: flex; align-items: center; justify-content: center; background: #12151e; }
+
+  .issues-list { padding: 0 24px 20px; }
+  .issue-item { border: 1px solid var(--c-border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border-left-width: 3px; }
+  .issue-item.critical { border-left-color: var(--c-critical); background: rgba(239,68,68,.04); }
+  .issue-item.major    { border-left-color: var(--c-major);    background: rgba(249,115,22,.04); }
+  .issue-item.minor    { border-left-color: var(--c-minor);    background: rgba(234,179,8,.04);  }
+  .issue-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .issue-sev { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+  .issue-sev.major { background: rgba(249,115,22,.2); color: var(--c-major); }
+  .issue-sev.minor { background: rgba(234,179,8,.2); color: var(--c-minor); }
+  .issue-cat { font-size: 11px; color: var(--c-muted); background: rgba(255,255,255,.05); padding: 2px 8px; border-radius: 4px; }
+  .issue-loc { font-size: 14px; font-weight: 600; }
+  .issue-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .issue-row { background: rgba(255,255,255,.03); border-radius: 6px; padding: 8px 12px; }
+  .issue-row label { display: block; font-size: 10px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .issue-row p { font-size: 13px; }
+  .issue-suggestion { background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); border-radius: 6px; padding: 8px 12px; }
+  .issue-suggestion label { display: block; font-size: 10px; color: var(--c-accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .issue-suggestion code { font-size: 12px; color: #a5b4fc; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+  .passed-section { padding: 0 24px 20px; }
+  .passed-item { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.15); color: var(--c-pass); font-size: 12px; padding: 4px 12px; border-radius: 100px; margin: 4px; }
+
+  .sample-badge { display: inline-block; background: rgba(99,102,241,.15); color: var(--c-accent); border: 1px solid rgba(99,102,241,.3); font-size: 11px; padding: 3px 10px; border-radius: 100px; margin-left: 10px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>UI <span>走查报告</span> <span class="sample-badge">示例预览</span></h1>
+  <p class="meta">生成时间：2024-12-01 14:30:22 · 本页为样式预览，真实报告由工具自动生成</p>
+</div>
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="num">3</div>
+    <div class="label">检查组件</div>
+  </div>
+  <div class="stat pass">
+    <div class="num">1</div>
+    <div class="label">通过（≥90分）</div>
+  </div>
+  <div class="stat">
+    <div class="num">76</div>
+    <div class="label">平均得分</div>
+  </div>
+  <div class="stat critical">
+    <div class="num">1</div>
+    <div class="label">🔴 Critical</div>
+  </div>
+  <div class="stat major">
+    <div class="num">4</div>
+    <div class="label">🟠 Major</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="section-title">组件走查详情</div>
+
+  <!-- Card 1: Failed -->
+  <div class="component-card">
+    <div class="card-header">
+      <div class="score-badge score-warn">72</div>
+      <div class="card-info">
+        <h3>PrimaryButton</h3>
+        <div class="chips">
+          <span class="chip chip-major">🟠 2 Major</span>
+          <span class="chip chip-minor">🟡 1 Minor</span>
+        </div>
+      </div>
+      <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="card-body">
+      <div class="diff-view">
+        <div class="diff-panel">
+          <h4>设计稿</h4>
+          <div class="mock-img">
+            <div class="mock-wrapper">
+              <div class="mock-btn-design">🚀 立即开始</div>
+            </div>
+          </div>
+        </div>
+        <div class="diff-panel">
+          <h4>代码实现</h4>
+          <div class="mock-img">
+            <div class="mock-wrapper">
+              <div class="mock-btn-impl">🚀 立即开始</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="issues-list">
+        <div class="issue-item major">
+          <div class="issue-top">
+            <span class="issue-sev major">Major</span>
+            <span class="issue-cat">颜色</span>
+            <span class="issue-loc">按钮背景色</span>
+          </div>
+          <div class="issue-rows">
+            <div class="issue-row">
+              <label>设计稿规范</label>
+              <p>背景色 #3B5BDB（Indigo 700）</p>
+            </div>
+            <div class="issue-row">
+              <label>当前实现</label>
+              <p>背景色 #4263EB（Indigo 600），偏浅约 10%</p>
+            </div>
+          </div>
+          <div class="issue-suggestion">
+            <label>修改建议</label>
+            <code>background-color: #3B5BDB;</code>
+          </div>
+        </div>
+        <div class="issue-item major">
+          <div class="issue-top">
+            <span class="issue-sev major">Major</span>
+            <span class="issue-cat">边框</span>
+            <span class="issue-loc">按钮圆角</span>
+          </div>
+          <div class="issue-rows">
+            <div class="issue-row">
+              <label>设计稿规范</label>
+              <p>border-radius: 8px</p>
+            </div>
+            <div class="issue-row">
+              <label>当前实现</label>
+              <p>border-radius: 6px，差异 2px</p>
+            </div>
+          </div>
+          <div class="issue-suggestion">
+            <label>修改建议</label>
+            <code>border-radius: 8px;</code>
+          </div>
+        </div>
+        <div class="issue-item minor">
+          <div class="issue-top">
+            <span class="issue-sev minor">Minor</span>
+            <span class="issue-cat">间距/尺寸</span>
+            <span class="issue-loc">按钮左右内边距</span>
+          </div>
+          <div class="issue-rows">
+            <div class="issue-row">
+              <label>设计稿规范</label>
+              <p>padding: 12px 24px</p>
+            </div>
+            <div class="issue-row">
+              <label>当前实现</label>
+              <p>padding: 12px 22px，水平差 2px</p>
+            </div>
+          </div>
+          <div class="issue-suggestion">
+            <label>修改建议</label>
+            <code>padding: 12px 24px;</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Passed -->
+  <div class="component-card">
+    <div class="card-header">
+      <div class="score-badge score-pass">96</div>
+      <div class="card-info">
+        <h3>Badge</h3>
+        <div class="chips">
+          <span class="chip chip-pass">✅ 通过</span>
+        </div>
+      </div>
+      <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="card-body collapsed">
+      <div class="passed-section">
+        <span class="passed-item">✓ 布局结构一致</span>
+        <span class="passed-item">✓ 颜色完全匹配</span>
+        <span class="passed-item">✓ 字体大小一致</span>
+        <span class="passed-item">✓ 间距规范</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Critical -->
+  <div class="component-card">
+    <div class="card-header">
+      <div class="score-badge score-fail">58</div>
+      <div class="card-info">
+        <h3>NavigationBar</h3>
+        <div class="chips">
+          <span class="chip chip-critical">🔴 1 Critical</span>
+          <span class="chip chip-major">🟠 2 Major</span>
+        </div>
+      </div>
+      <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="card-body collapsed"></div>
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('.card-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const body = header.nextElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    body.classList.toggle('collapsed');
+    icon.style.transform = body.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
+  });
+});
+</script>
+</body>
+</html>
